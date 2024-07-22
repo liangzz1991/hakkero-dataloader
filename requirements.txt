@@ -1,0 +1,7 @@
+numpy
+torch
+h5py
+bitarray
+tabulate
+scipy
+msgspec
