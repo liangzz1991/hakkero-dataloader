@@ -53,12 +53,12 @@ class MixedDataset(torch.utils.data.IterableDataset):
         for i, (name, sub_config) in enumerate(config.items()):
             if isinstance(sub_config, str):
                 path = sub_config
-                n_epoch = 3 * self.num_epochs
+                n_epoch = 1 * self.num_epochs if self.num_epochs > 0 else 1
                 recipe = default_recipe
                 weight = None
             else:
                 path = sub_config["path"]
-                n_epoch = sub_config["epoch"] * self.num_epochs
+                n_epoch = sub_config["epoch"] * self.num_epochs if self.num_epochs > 0 else sub_config["epoch"]
                 recipe = sub_config.get("recipe", default_recipe)
 
                 if "segment" not in recipe:
@@ -155,10 +155,10 @@ class MixedDataset(torch.utils.data.IterableDataset):
 
     def __repr__(self):
         entries = (
-            (d.name, w * 100, f"{len(d):,}", d.size / 1024**3, d.size / len(d) / 1024)
+            (d.name, w, f"{len(d):,}", d.size / 1024**3, d.size / len(d) / 1024)
             for w, d in zip(self.weights, self.datasets)
         )
-        header = ["name", "weight(%)", "#entries", "size(GB)", "average len(KB)"]
+        header = ["name", "weight", "#entries", "size(GB)", "average len(KB)"]
         table = tabulate(
             sorted(entries, key=lambda x: x[1], reverse=True),
             header,

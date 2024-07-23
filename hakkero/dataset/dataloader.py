@@ -64,14 +64,14 @@ class CudaPrefetcher(Iterable):
 
 
 class Loader(torch.utils.data.IterableDataset):
-    def prefetch(self, num_workers=2, prefetch_factor=20):
+    def prefetch(self, num_workers=2, prefetch_factor=20, pin_memory=True):
         loader = torch.utils.data.DataLoader(
             self,
             batch_size=None,
             collate_fn=lambda x: x,
             num_workers=num_workers,
             prefetch_factor=prefetch_factor,
-            pin_memory=True,
+            pin_memory=pin_memory,
         )
         return CudaPrefetcher(loader)
 

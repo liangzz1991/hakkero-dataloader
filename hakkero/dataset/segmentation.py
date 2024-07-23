@@ -51,7 +51,7 @@ def concat(data, max_length, info, r: random.Random = None, prev=None):
 
         first_used = later_used = [info]
 
-    length = input.n_element()
+    length = input.nelement()
     if length > max_length:
         segments = [
             dict(

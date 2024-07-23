@@ -19,6 +19,7 @@ def _configure_logger():
     formatter = logging.Formatter(fmt=FMT_LOG, datefmt=FMT_DATE)
     handler.setFormatter(formatter)
     logger.addHandler(handler)
+    logger.propagate = False
 
 
 def set_logging_level(level):
