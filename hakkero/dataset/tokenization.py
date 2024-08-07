@@ -14,7 +14,7 @@ def legacy(data, tokenizer):
     context = "\n\n".join(
         [
             data[s].strip()
-            for s in ("text", "title", "question", "answer", "abstract", "code")
+            for s in ("title", "summary", "abstract", "text", "question", "answer", "code")
             if s in data and data[s].strip()
         ]
     )
@@ -42,7 +42,7 @@ def legacy(data, tokenizer):
 
     if len(input) <= 1:
         raise TokenizationError(
-            "No valid keys in input, expect of: ('text', 'title', 'question', 'answer', 'abstract', 'code')"
+            "No valid keys in input, expect of: ('title', 'summary', 'abstract', 'text', 'question', 'answer', 'code')"
         )
 
     return dict(input=torch.tensor(input[:-1], dtype=torch.long), label=torch.tensor(label[1:], dtype=torch.long))
