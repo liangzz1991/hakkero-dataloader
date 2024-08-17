@@ -33,6 +33,7 @@ class SegmentDataset(torch.utils.data.IterableDataset):
         n_shards=2,
         rank=0,
         world_size=1,
+        **kwargs,
     ):
         super().__init__()
 
@@ -63,13 +64,15 @@ class SegmentDataset(torch.utils.data.IterableDataset):
         self.n_target = RunningAverage()
         self.random = None if self.seed < 0 else random.Random(self.seed)
 
+        self.kwargs = kwargs
+
     def __next__(self):
         sample = next(self.dataset)
         if "data" not in sample:
             return [dict(used=[sample["info"]])]
 
         try:
-            data = recipes.tokenize[self.recipe["tokenize"]](sample["data"], self.tokenizer)
+            data = recipes.tokenize[self.recipe["tokenize"]](sample["data"], self.tokenizer, **self.kwargs)
         except TokenizationError as e:
             logger.warning(f"[{self.path}:{sample['info'][1]}]: {e}\n{sample['data']}")
             return [dict(used=[sample["info"]])]
@@ -138,6 +141,7 @@ class SegmentDataset(torch.utils.data.IterableDataset):
 class MixedSegmentDataset(SegmentDataset):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
         # fewer slots for less mixed distribution but faster initial loading
         self.n_slots = 1 if self.seed < 0 else 20
         self.weights = np.array([1 / self.n_slots] * self.n_slots)

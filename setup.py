@@ -14,7 +14,7 @@ assert version > 30, "requires setuptools > 30"
 this_directory = path.abspath(path.dirname(__file__))
 
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 
 
 setup(

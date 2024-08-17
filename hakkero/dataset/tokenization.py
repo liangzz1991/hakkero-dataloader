@@ -8,7 +8,7 @@ from hakkero.dataset.errors import TokenizationError
 from hakkero.dataset.utils import IGNORE_INDEX
 
 
-def legacy(data, tokenizer):
+def legacy(data, tokenizer, **kwargs):
     assert isinstance(data, dict), "wrong data format, expect {key: value}, " + f"but got {data}"
 
     context = "\n\n".join(
@@ -45,15 +45,29 @@ def legacy(data, tokenizer):
             "No valid keys in input, expect of: ('title', 'summary', 'abstract', 'text', 'question', 'answer', 'code')"
         )
 
+    if kwargs.get("add_bos_token", False):
+        if input[0] != tokenizer.bos_token_id:
+            input = [tokenizer.bos_token_id] + input
+        if label[0] != tokenizer.bos_token_id:
+            label = [tokenizer.bos_token_id] + label
+
+    if kwargs.get("add_eos_token", False):
+        if input[-1] != tokenizer.eos_token_id:
+            input = input + [tokenizer.eos_token_id]
+        if label[-1] != tokenizer.eos_token_id:
+            label = label + [tokenizer.eos_token_id]
+
     return dict(input=torch.tensor(input[:-1], dtype=torch.long), label=torch.tensor(label[1:], dtype=torch.long))
 
 
 # messages = [{"role": "user", "content": xxx}, {"role": "assistant", "content": xxx}, ...]
-def huggingface_message(messages, tokenizer):
+def huggingface_message(messages, tokenizer, **kwargs):
     if not isinstance(messages, list) or not isinstance(messages[0], dict):
         raise ValueError("messages should be [{'role': 'xxx', 'content': 'xxx'}, ...]," + f" but got {messages}")
+
     assert hasattr(tokenizer, "apply_chat_template"), "tokenizer should have apply_chat_template"
-    assert messages[-1]["role"] == "assistant" and messages[-2]["role"] == "user"
+    assert messages[-1]["role"] == "assistant", "messages[-1]['role'] should be 'assistant'"
+    assert messages[-2]["role"] == "user", "messages[-2]['role'] should be 'user'"
 
     assert tokenizer.apply_chat_template(
         [{"role": "user", "content": "test"}], add_generation_prompt=True
@@ -79,9 +93,9 @@ def huggingface_message(messages, tokenizer):
 #   "chosen": "xx",
 #   "rejected": "xx"
 # }
-def huggingface_preference(data, tokenizer):
+def huggingface_preference(data, tokenizer, **kwargs):
     assert hasattr(tokenizer, "apply_chat_template")
-    assert data["context"][-1]["role"] == "user"
+    assert data["context"][-1]["role"] == "user", "data['context'][-1]['role'] should be 'user'"
 
     assert tokenizer.apply_chat_template(
         [{"role": "user", "content": "test"}], add_generation_prompt=True

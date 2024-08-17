@@ -32,6 +32,7 @@ class MixedDataset(torch.utils.data.IterableDataset):
         rank=0,
         world_size=1,
         n_shards=2,
+        **kwargs,
     ):
         super().__init__()
 
@@ -82,6 +83,7 @@ class MixedDataset(torch.utils.data.IterableDataset):
                 n_shards=n_shards,
                 rank=rank,
                 world_size=world_size,
+                **kwargs,
             )
 
             self.datasets.append(dataset)
@@ -170,7 +172,16 @@ class MixedDataset(torch.utils.data.IterableDataset):
 
 
 def get_dataset(
-    config, tokenizer, num_epochs, max_length=4096, homogeneous=False, seed=0, rank=0, world_size=1, n_workers=2
+    config,
+    tokenizer,
+    num_epochs,
+    max_length=4096,
+    homogeneous=False,
+    seed=0,
+    rank=0,
+    world_size=1,
+    n_workers=2,
+    **kwargs,
 ):
     return MixedDataset(
         config,
@@ -182,4 +193,5 @@ def get_dataset(
         rank=rank,
         world_size=world_size,
         n_shards=n_workers * world_size,
+        **kwargs,
     )
