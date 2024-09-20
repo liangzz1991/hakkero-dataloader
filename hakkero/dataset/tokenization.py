@@ -60,6 +60,7 @@ def legacy(data, tokenizer, **kwargs):
     return dict(input=torch.tensor(input[:-1], dtype=torch.long), label=torch.tensor(label[1:], dtype=torch.long))
 
 
+# ----------------------------------------------------------------------------------------------------------------------
 # messages = [{"role": "user", "content": xxx}, {"role": "assistant", "content": xxx}, ...]
 def huggingface_message(messages, tokenizer, **kwargs):
     if not isinstance(messages, list) or not isinstance(messages[0], dict):
@@ -129,3 +130,105 @@ def huggingface_preference(data, tokenizer, **kwargs):
         "inputs": {key: torch.tensor(value[:-1]) for key, value in inputs.items()},
         "labels": {key: torch.tensor(value[1:]) for key, value in labels.items()},
     }
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+chatml_role = {
+    "join": "\n",
+    "user": "<|im_start|>user\n{}<|im_end|>",
+    "system": "<|im_start|>system\n{}<|im_end|>",
+    "assistant": "<|im_start|>assistant\n{}<|im_end|>",
+    "assistant_start": "<|im_start|>assistant\n",
+    "assistant_end": "<|im_end|>",
+}
+
+
+# messages = [{"role": "user", "content": xxx}, {"role": "assistant", "content": xxx}, ...]
+def role_message(messages, tokenizer, template):
+    if not isinstance(messages, list) or not isinstance(messages[0], dict):
+        raise ValueError("messages should be [{'role': 'xxx', 'content': 'xxx'}, ...]," + f" but got {messages}")
+
+    assert messages[-1]["role"] == "assistant", "messages[-1]['role'] should be 'assistant'"
+    assert messages[-2]["role"] == "user", "messages[-2]['role'] should be 'user'"
+
+    assistant_start_ids = tokenizer.encode(
+        template["assistant_start"], add_special_tokens=False, max_length=int(1e12), trucation=True
+    )
+
+    input, label, context = [], [], None
+    for i, message in enumerate(messages, start=1):
+        if message["role"] in ["system", "user"]:
+            text = template[message["role"]].format(message["content"])
+            context = text if context is None else template["join"].join([context, text])
+        elif message["role"] == "assistant":
+            # only tokenize and append context right before assistant message
+            # context after assistant message is not useful
+            context = template["join"].join([context, template["assistant_start"]])
+            ids = tokenizer.encode(context, add_special_tokens=False, max_length=int(1e12), trucation=True)
+            input.extend(ids)
+
+            label.extend([IGNORE_INDEX] * len(ids))
+
+            ids = tokenizer.encode(
+                template["assistant_start"] + message["content"] + template["assistant_end"],
+                add_special_tokens=False,
+                max_length=int(1e12),
+                trucation=True,
+            )
+
+            # a hack to avoid prepending space in the assistant response
+            assert ids[: len(assistant_start_ids)] == assistant_start_ids
+            input.extend(ids[len(assistant_start_ids) :])
+            label.extend(ids[len(assistant_start_ids) :])
+            context = ""
+        else:
+            raise ValueError(f"not supported role: {message['role']}")
+
+    return dict(input=torch.tensor(input[:-1]), label=torch.tensor(label[1:]))
+
+
+def chatml_message(messages, tokenizer):
+    return role_message(messages, tokenizer, chatml_role)
+
+
+# data = {
+#   "context": [{"role": "user", "content": xxx}, {"role": "assistant", "content": xxx}, ...],
+#   "chosen": "xx",
+#   "rejected": "xx"
+# }
+def role_preference(data, tokenizer, template):
+    assert data["context"][-1]["role"] != "assistant"
+    assistant_start_ids = tokenizer.encode(
+        template["assistant_start"], add_special_tokens=False, max_length=int(1e12), trucation=True
+    )
+    inputs = dict(chosen=[], rejected=[])
+    labels = dict(chosen=[], rejected=[])
+
+    context = template["join"].join(
+        [template[message["role"]].format(message["content"]) for message in data["context"]]
+        + [template["assistant_start"]]
+    )
+    context_ids = tokenizer.encode(context, add_special_tokens=False, max_length=int(1e12), trucation=True)
+
+    for key in ("chosen", "rejected"):
+        inputs[key].extend(context_ids)
+        labels[key].extend(IGNORE_INDEX for _ in context_ids)
+        response_ids_with_prefix = tokenizer.encode(
+            template["assistant_start"] + data[key] + template["assistant_end"],
+            add_special_tokens=False,
+            max_length=int(1e12),
+            trucation=True,
+        )
+        assert response_ids_with_prefix[: len(assistant_start_ids)] == assistant_start_ids
+        response_ids = response_ids_with_prefix[len(assistant_start_ids) :]
+        inputs[key].extend(response_ids)
+        labels[key].extend(response_ids)
+
+    return {
+        "inputs": {key: torch.tensor(value[:-1]) for key, value in inputs.items()},
+        "labels": {key: torch.tensor(value[1:]) for key, value in labels.items()},
+    }
+
+
+def chatml_preference(data, tokenizer):
+    return role_preference(data, tokenizer, chatml_role)
