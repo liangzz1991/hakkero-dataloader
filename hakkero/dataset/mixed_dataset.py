@@ -51,22 +51,25 @@ class MixedDataset(torch.utils.data.IterableDataset):
         self.weights = []
         self.prefetcher = Prefetcher()
 
+        strategy_segment = kwargs.pop("strategy_segment", None) or default_recipe["segment"]
+        strategy_tokenize = kwargs.pop("strategy_tokenize", None) or default_recipe["tokenize"]
+
         for i, (name, sub_config) in enumerate(config.items()):
             if isinstance(sub_config, str):
                 path = sub_config
                 n_epoch = 1 * self.num_epochs if self.num_epochs > 0 else 1
-                recipe = default_recipe
+                recipe = {"segment": strategy_segment, "tokenize": strategy_tokenize}
                 weight = None
             else:
                 path = sub_config["path"]
                 n_epoch = sub_config["epoch"] * self.num_epochs if self.num_epochs > 0 else sub_config["epoch"]
-                recipe = sub_config.get("recipe", default_recipe)
+                recipe = sub_config.get("recipe", {})
 
                 if "segment" not in recipe:
-                    recipe["segment"] = "naive"
+                    recipe["segment"] = strategy_segment
 
                 if "tokenize" not in recipe:
-                    recipe["tokenize"] = "legacy"
+                    recipe["tokenize"] = strategy_tokenize
 
                 weight = sub_config.get("weight", None)
 
