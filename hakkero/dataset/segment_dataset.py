@@ -8,12 +8,16 @@ import random
 import numpy as np
 import torch.utils.data
 
-from hakkero.dataset import recipes
 from hakkero.dataset.errors import SegmentationError
 from hakkero.dataset.errors import TokenizationError
 from hakkero.dataset.iterable_dataset import IterableDataset
 from hakkero.dataset.logger import logger
-from hakkero.dataset.recipes import default_recipe
+from hakkero.dataset.strategy import default_strategy
+from hakkero.dataset.strategy import segment as strategy_segment
+from hakkero.dataset.strategy import ST_CONCAT
+from hakkero.dataset.strategy import ST_SEGMENT
+from hakkero.dataset.strategy import ST_TOKENIZE
+from hakkero.dataset.strategy import tokenize as strategy_tokenize
 from hakkero.dataset.utils import MultinomialSampler
 from hakkero.dataset.utils import RunningAverage
 
@@ -28,7 +32,7 @@ class SegmentDataset(torch.utils.data.IterableDataset):
         seed=-1,
         infinite=False,
         max_epoch=1,
-        recipe=None,
+        strategy=None,
         max_length=1024,
         n_shards=2,
         rank=0,
@@ -54,7 +58,7 @@ class SegmentDataset(torch.utils.data.IterableDataset):
             world_size=world_size,
         )
 
-        self.recipe = default_recipe if recipe is None else recipe
+        self.strategy = default_strategy if strategy is None else strategy
 
         self.tokenizer = tokenizer
         self.max_length = max_length
@@ -72,21 +76,23 @@ class SegmentDataset(torch.utils.data.IterableDataset):
             return [dict(used=[sample["info"]])]
 
         try:
-            data = recipes.tokenize[self.recipe["tokenize"]](sample["data"], self.tokenizer, **self.kwargs)
+            data = strategy_tokenize[self.strategy[ST_TOKENIZE]](sample["data"], self.tokenizer, **self.kwargs)
         except TokenizationError as e:
             logger.warning(f"[{self.path}:{sample['info'][1]}]: {e}\n{sample['data']}")
             return [dict(used=[sample["info"]])]
 
         try:
-            if self.recipe["segment"] == "concat":
+            if self.strategy[ST_SEGMENT] == ST_CONCAT:
                 while True:
-                    segments, self.prev = recipes.segment[self.recipe["segment"]](
+                    segments, self.prev = strategy_segment[self.strategy[ST_SEGMENT]](
                         data, self.max_length, sample["info"], self.random, self.prev
                     )
                     if segments:
                         break
             else:
-                segments = recipes.segment[self.recipe["segment"]](data, self.max_length, sample["info"], self.random)
+                segments = strategy_segment[self.strategy[ST_SEGMENT]](
+                    data, self.max_length, sample["info"], self.random
+                )
         except SegmentationError as e:
             logger.warning(f"[{self.path}:{sample['info'][1]}]: {e}\n{sample['data']}")
             return [dict(used=[sample["info"]])]

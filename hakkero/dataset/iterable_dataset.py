@@ -391,7 +391,8 @@ class IterableDataset(IndexedDataset, torch.utils.data.IterableDataset):
 
             data = self.decode_byte(index, sample.pop("byte"))
             if data:
-                sample["data"] = data
+                sample["data"] = data["data"]
+                sample["uid"] = data["uid"]
 
             yield sample
 

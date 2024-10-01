@@ -7,8 +7,10 @@ import torch.utils.data
 from tabulate import tabulate
 
 from hakkero.dataset.iterable_dataset import Prefetcher
-from hakkero.dataset.recipes import default_recipe
 from hakkero.dataset.segment_dataset import MixedSegmentDataset
+from hakkero.dataset.strategy import default_strategy
+from hakkero.dataset.strategy import ST_SEGMENT
+from hakkero.dataset.strategy import ST_TOKENIZE
 from hakkero.dataset.utils import MultinomialSampler
 
 
@@ -51,25 +53,25 @@ class MixedDataset(torch.utils.data.IterableDataset):
         self.weights = []
         self.prefetcher = Prefetcher()
 
-        strategy_segment = kwargs.pop("strategy_segment", None) or default_recipe["segment"]
-        strategy_tokenize = kwargs.pop("strategy_tokenize", None) or default_recipe["tokenize"]
+        strategy_segment = kwargs.pop(ST_SEGMENT, None) or default_strategy[ST_SEGMENT]
+        strategy_tokenize = kwargs.pop(ST_TOKENIZE, None) or default_strategy[ST_TOKENIZE]
 
         for i, (name, sub_config) in enumerate(config.items()):
             if isinstance(sub_config, str):
                 path = sub_config
                 n_epoch = 1 * self.num_epochs if self.num_epochs > 0 else 1
-                recipe = {"segment": strategy_segment, "tokenize": strategy_tokenize}
+                strategy = {ST_SEGMENT: strategy_segment, ST_TOKENIZE: strategy_tokenize}
                 weight = None
             else:
                 path = sub_config["path"]
                 n_epoch = sub_config["epoch"] * self.num_epochs if self.num_epochs > 0 else sub_config["epoch"]
-                recipe = sub_config.get("recipe", {})
+                strategy = sub_config.get("strategy", {})
 
-                if "segment" not in recipe:
-                    recipe["segment"] = strategy_segment
+                if ST_SEGMENT not in strategy:
+                    strategy[ST_SEGMENT] = strategy_segment
 
-                if "tokenize" not in recipe:
-                    recipe["tokenize"] = strategy_tokenize
+                if ST_TOKENIZE not in strategy:
+                    strategy[ST_TOKENIZE] = strategy_tokenize
 
                 weight = sub_config.get("weight", None)
 
@@ -81,7 +83,7 @@ class MixedDataset(torch.utils.data.IterableDataset):
                 seed=self.seed,
                 infinite=True if homogeneous else False,
                 max_epoch=n_epoch,
-                recipe=recipe,
+                strategy=strategy,
                 max_length=max_length,
                 n_shards=n_shards,
                 rank=rank,

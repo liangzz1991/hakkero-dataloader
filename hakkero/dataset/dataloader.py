@@ -64,7 +64,7 @@ class CudaPrefetcher(Iterable):
 
 
 class Loader(torch.utils.data.IterableDataset):
-    def prefetch(self, num_workers=2, prefetch_factor=20, pin_memory=True):
+    def prefetch(self, num_workers=2, prefetch_factor=20, pin_memory=True, drop_last=False):
         loader = torch.utils.data.DataLoader(
             self,
             batch_size=None,
@@ -72,6 +72,7 @@ class Loader(torch.utils.data.IterableDataset):
             num_workers=num_workers,
             prefetch_factor=prefetch_factor,
             pin_memory=pin_memory,
+            drop_last=drop_last,
         )
         return CudaPrefetcher(loader)
 
@@ -110,9 +111,11 @@ class PadLoaderBase(Loader):
     def __iter__(self):
         for sample in self.dataset:
             self.put(sample)
+
             if not self.exceed():
                 continue
             yield self.pop()
+
         if len(self.labels):
             yield self.pop()
 

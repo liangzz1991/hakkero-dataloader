@@ -69,7 +69,7 @@ def random_range(start, stop=None, step=None, seed=0):
 
     # use a mapping to convert a standard range into the desired range
     def mapping(i):
-        return i * step + step
+        return i * step + start
 
     # compute the number of numbers in this range
     maximum = int(math.ceil((stop - start) / step))

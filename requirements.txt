@@ -1,7 +1,8 @@
 numpy
 torch
 h5py
-bitarray
+bitarray>=2.9.2
 tabulate
 scipy
 msgspec
+msgpack>=0.5.2

@@ -51,20 +51,7 @@ dataset = get_dataset(
     rank=dp_rank,
     world_size=dp_world_size,
     n_workers=n_workers,
-    # segment and tokenize strategy or set them in `config` and set strategy_segment=None and startegy_tokenize=None: 
-    # {
-    #     "data_name": {
-    #         "group": "zh",
-    #         "name": "data_name",
-    #         "epoch": 1,
-    #         "path": "xx",
-    #         "recipe": {
-    #             "segment": "naive",
-    #             "tokenize": "legacy"
-    #         },
-    #         "weight": 1.0
-    #     }
-    # }
+    # segment and tokenize strategy or set them in `config` and let strategy_segment=None and strategy_tokenize=None: 
     strategy_segment="naive",
     strategy_tokenize="legacy",
     # add bos/eos token for legacy tokenize strategy
@@ -77,6 +64,38 @@ prefetcher = dataloader.prefetch(n_workers)
 
 for step, batch in enumerate(prefetcher, start=0):
     print(batch)
+```
+
+example of `config`: 
+```json
+{
+    "hermes25_1":
+    {
+        "group": "en",
+        "name": "hermes25_1",
+        "epoch": 1,
+        "path": "hermes25",
+        "strategy":
+        {
+            "st_segment": "integrous",
+            "st_tokenize": "hg"
+        },
+        "weight": 0.5
+    },
+    "hermes25_2":
+    {
+        "group": "en",
+        "name": "hermes25_1",
+        "epoch": 1,
+        "path": "hermes25",
+        "strategy":
+        {
+            "st_segment": "integrous",
+            "st_tokenize": "hg"
+        },
+        "weight": 0.5
+    }
+}
 ```
 
 ## 2. Supported Strategies
@@ -99,30 +118,37 @@ See [segmentation.py](./hakkero/dataset/segmentation.py) and [tokenization.py](.
   - format of input data
     ```json
     {
-        "title": "xxx",
-        "summary": "xxx",
-        "abstract": "xxx",
-        "text": "xxx",
-        "question": "xxx",
-        "answer": "xxx",
-        "code": "xxx",
-        "label": "xxx"  # for sft data
+      "uid": "xxx",
+      "data":
+      {
+          "title": "xxx",
+          "summary": "xxx",
+          "abstract": "xxx",
+          "text": "xxx",
+          "question": "xxx",
+          "answer": "xxx",
+          "code": "xxx",
+          "label": "xxx"
+      }
     }
     ```
 
     - All fields except `label` are stripped and joined with "\n\n" as the context.
-    - `label` is the target to learn for finetuning.
+    - `label` is the target to learn for finetuning (pretrain data should not have the `label` field).
     - See func `legacy` in [tokenization.py](./hakkero/dataset/tokenization.py) for more details.
   - extra parameters: `add_bos_token`, `add_eos_token`
 
 - `hg`: huggingface message data, use `tokenizer.apply_chat_template` to encode the input.
   - format of input data
     ```json
-    [
+    {
+      "uid": "xx",
+      "data": [
         {"role": "user", "content": "xxx"},
         {"role": "assistant", "content": "xxx"},
-        ...
-    ]
+         ...
+      ]
+    }
     ```
 
     See func `huggingface_message` in [tokenization.py](./hakkero/dataset/tokenization.py) for more details.
@@ -130,11 +156,14 @@ See [segmentation.py](./hakkero/dataset/segmentation.py) and [tokenization.py](.
 - `chatml`: chat message data, use chatml to encode the input.
   - format of input data
     ```json
-    [
+    {
+      "uid": "xx",
+      "data": [
         {"role": "user", "content": "xxx"},
         {"role": "assistant", "content": "xxx"},
-        ...
-    ]
+         ...
+      ]
+    }
     ```
 
     See func `chatml_message` in [tokenization.py](./hakkero/dataset/tokenization.py) for more details.
@@ -143,14 +172,17 @@ See [segmentation.py](./hakkero/dataset/segmentation.py) and [tokenization.py](.
   - format of input data
     ```json
     {
+      "uid": "xx",
+      "data": {
         "context": [
-            {"role": "user", "content": "xxx"},
-            {"role": "assistant", "content": "xxx"},
-            ...
-            {"role": "user", "content": "xxx"}
+          {"role": "user", "content": "xxx"},
+          {"role": "assistant", "content": "xxx"},
+          ...
+          {"role": "user", "content": "xxx"}
         ],
         "chosen": "chosen response",
         "rejected": "rejected response"
+      }
     }
     ```
     
@@ -160,14 +192,17 @@ See [segmentation.py](./hakkero/dataset/segmentation.py) and [tokenization.py](.
   - format of input data
     ```json
     {
+      "uid": "xx",
+      "data": {
         "context": [
-            {"role": "user", "content": "xxx"},
-            {"role": "assistant", "content": "xxx"},
-            ...
-            {"role": "user", "content": "xxx"}
+          {"role": "user", "content": "xxx"},
+          {"role": "assistant", "content": "xxx"},
+          ...
+          {"role": "user", "content": "xxx"}
         ],
         "chosen": "chosen response",
         "rejected": "rejected response"
+      }
     }
     ```
     
