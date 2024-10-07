@@ -52,8 +52,8 @@ dataset = get_dataset(
     world_size=dp_world_size,
     n_workers=n_workers,
     # segment and tokenize strategy or set them in `config` and let strategy_segment=None and strategy_tokenize=None: 
-    strategy_segment="naive",
-    strategy_tokenize="legacy",
+    st_segment="naive",
+    st_tokenize="legacy",
     # add bos/eos token for legacy tokenize strategy
     add_bos_token=True,
     add_eos_token=True,

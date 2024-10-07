@@ -3,24 +3,65 @@
 #
 
 import argparse
+import multiprocessing as mp
 import os
 import shutil
+from functools import partial
 
 import h5py
 
 from hakkero.dataset.logger import logger
 
 
-def build_index(filename, output=None):
-    logger.info(f"build indexed dataset from {filename}")
-
-    offset = 0
-    bounds = [offset]
+def _build_chunk_offsets(filename, start, end, worker_id, n_workers):
+    offset = start
+    bounds = []
     with open(filename, "rb") as fin:
-        for idx, line in enumerate(fin):
-            logger.info(f"cal offset: {idx}")
-            offset += len(line)
+        fin.seek(offset)
+
+        if start > 0:
+            fin.readline()
+            offset = fin.tell()
+
+        bounds.append(offset)
+
+        while offset < end:
+            logger.info(f"worker: {worker_id}/{n_workers}, offset: {offset}, range in offset [{start}, {end}]")
+            offset += len(fin.readline())
             bounds.append(offset)
+
+    return bounds
+
+
+def build_index(filename, output=None, num_workers=None):
+    if num_workers is None:
+        num_workers = mp.cpu_count()
+
+    logger.info(f"build indexed with {num_workers} workers for dataset from {filename}")
+
+    file_size = os.path.getsize(filename)
+    chunk_size = file_size // num_workers
+
+    pool = mp.Pool(processes=num_workers)
+
+    chunks = [(i * chunk_size, (i + 1) * chunk_size, i + 1, num_workers) for i in range(num_workers)]
+    chunks[-1] = (chunks[-1][0], file_size, chunks[-1][-2], chunks[-1][-1])
+
+    func = partial(_build_chunk_offsets, filename)
+    results = pool.starmap(func, chunks)
+
+    pool.close()
+    pool.join()
+
+    bounds = [0]
+    for chunk_offsets in results:
+        if bounds[-1] != chunk_offsets[0]:
+            bounds.append(chunk_offsets[0])
+        bounds.extend(chunk_offsets[1:])
+
+    bounds = sorted(bounds)
+    if bounds[-1] != file_size:
+        bounds.append(file_size)
 
     if output is not None:
         os.makedirs(output, exist_ok=True)
@@ -38,12 +79,13 @@ def build_index(filename, output=None):
 
 def main():
     parser = argparse.ArgumentParser(description="build index for dataset")
-    parser.add_argument("--filename", type=str, help="full filename of jsonl file", required=True)
+    parser.add_argument("--filename", type=str, help="full filename of jsonl file")
     parser.add_argument("--output", type=str, help="output path for saving data.jsonl and index.h5")
+    parser.add_argument("--num_workers", type=int, default=None, help="number of workers")
 
     args = parser.parse_args()
 
-    build_index(args.filename, args.output)
+    build_index(args.filename, args.output, args.num_workers)
 
 
 if __name__ == "__main__":
