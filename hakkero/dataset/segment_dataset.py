@@ -102,9 +102,9 @@ class SegmentDataset(torch.utils.data.IterableDataset):
                 # preference data
                 assert "inputs" in s
                 s["length"] = {key: value.nelement() for key, value in s["labels"].items()}
-                s["n_targets"] = {key: value.gt(0).count_nonzero().item() for key, value in s["labels"].items()}
-                self.length.update(list(s["lengths"].values()))
-                self.n_target.update(list(s["n_targets"].values()))
+                s["n_target"] = {key: value.gt(0).count_nonzero().item() for key, value in s["labels"].items()}
+                self.length.update(list(s["length"].values()))
+                self.n_target.update(list(s["n_target"].values()))
             else:
                 # pretrain or sft
                 s["length"] = s["label"].nelement()

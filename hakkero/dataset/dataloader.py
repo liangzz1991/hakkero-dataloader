@@ -156,8 +156,8 @@ class PadLoader(PadLoaderBase):
                 [torch.full((batch["input_ids"].shape[-1],), task, dtype=torch.long) for task in self.task_ids], dim=0
             )
         else:
-            batch["input_ids"] = torch.stack(self.input_ids, dim=0).long()
-            batch["labels"] = torch.stack(self.labels, dim=0).long()
+            batch["input_ids"] = torch.cat(self.input_ids, dim=0).unsqueeze(0)
+            batch["labels"] = torch.cat(self.labels, dim=0).unsqueeze(0)
             batch["cu_seqlens"] = torch.tensor([0] + self.lengths).cumsum(dim=-1).int()
             batch["position_ids"] = torch.cat(
                 [torch.arange(length, dtype=torch.long) for length in self.lengths], 0
@@ -195,7 +195,6 @@ class PreferencePadLoader(PadLoaderBase):
         batch = {
             "input_ids": dict(),
             "labels": dict(),
-            "attention_mask": dict(),
             "task_ids": dict(),
             "n_samples": torch.tensor(len(self.lengths), dtype=torch.long),
             "n_tokens": torch.tensor(
@@ -206,18 +205,45 @@ class PreferencePadLoader(PadLoaderBase):
             ),
             "stats": self.get_stats(self.task_ids, self.useds, self.failed),
         }
-        for key in ("chosen", "rejected"):
-            batch["input_ids"][key] = pad_sequence(
-                [d[key] for d in self.input_ids], batch_first=True, padding_value=self.padding_id
-            ).long()
-            batch["labels"][key] = pad_sequence(
-                [d[key] for d in self.labels], batch_first=True, padding_value=IGNORE_INDEX
-            ).long()
-            batch["attention_mask"][key] = batch["input_ids"][key].ne(self.padding_id).long()
-            batch_length = batch["input_ids"][key].shape[-1]
-            batch["task_ids"][key] = torch.stack(
-                [torch.full((batch_length,), task, dtype=torch.long) for task in self.task_ids], dim=0
-            )
+
+        if not self.unpad:
+            batch["attention_mask"] = dict()
+
+            for key in ("chosen", "rejected"):
+                batch["input_ids"][key] = pad_sequence(
+                    [d[key] for d in self.input_ids], batch_first=True, padding_value=self.padding_id
+                ).long()
+                batch["labels"][key] = pad_sequence(
+                    [d[key] for d in self.labels], batch_first=True, padding_value=IGNORE_INDEX
+                ).long()
+
+                batch["attention_mask"][key] = batch["input_ids"][key].ne(self.padding_id).long()
+
+                batch_length = batch["input_ids"][key].shape[-1]
+                batch["task_ids"][key] = torch.stack(
+                    [torch.full((batch_length,), task, dtype=torch.long) for task in self.task_ids], dim=0
+                )
+        else:
+            batch["cu_seqlens"] = dict()
+            batch["max_seqlen"] = dict()
+            batch["position_ids"] = dict()
+
+            for key in ("chosen", "rejected"):
+                batch["input_ids"][key] = torch.cat([d[key] for d in self.input_ids], 0).unsqueeze(0)
+                batch["labels"][key] = torch.cat([d[key] for d in self.labels], 0).unsqueeze(0)
+
+                seqlens = [p[key] for p in self.lengths]
+                batch["cu_seqlens"][key] = torch.tensor([0] + seqlens).cumsum(dim=-1).int()
+
+                batch["max_seqlen"][key] = max(seqlens)
+
+                batch["position_ids"][key] = torch.cat(
+                    [torch.arange(l, dtype=torch.long) for l in seqlens], 0
+                ).unsqueeze(0)
+
+                batch["task_ids"][key] = torch.cat(
+                    [torch.full((l,), t, dtype=torch.long) for t, l in zip(self.task_ids, seqlens)], 0
+                ).unsqueeze(0)
 
         self.failed = []
         self.useds = []
@@ -395,10 +421,10 @@ class PreferenceUnpadLoader(UnpadLoaderBase):
             self.failed.append((sample["task"], sample["used"]))
             return
 
-        length = sum(sample["lengths"].values())
+        length = sum(sample["length"].values())
         self.lengths.append(length)
         self.total_length += length
-        n_target = sum(sample["n_targets"].values())
+        n_target = sum(sample["n_target"].values())
         self.n_targets.append(n_target)
 
         self.task_ids.append(sample["task"])
@@ -406,7 +432,7 @@ class PreferenceUnpadLoader(UnpadLoaderBase):
         self.input_ids.append(sample["inputs"])
         self.labels.append(sample["labels"])
 
-        self.seqlens.append(sample["lengths"])
+        self.seqlens.append(sample["length"])
 
     def pop(self):
         indices = self.find_batch_combination()
@@ -435,7 +461,7 @@ class PreferenceUnpadLoader(UnpadLoaderBase):
             "sample_ids": dict(),
             "position_ids": dict(),
             "cu_seqlens": dict(),
-            "max_lens": dict(),
+            "max_seqlen": dict(),
             "n_samples": torch.tensor(len(lengths), dtype=torch.long),
             "n_tokens": torch.tensor(sum(lengths), dtype=torch.long),
             "n_targets": torch.tensor(sum(n_targets), dtype=torch.long),
@@ -455,7 +481,7 @@ class PreferenceUnpadLoader(UnpadLoaderBase):
             ).unsqueeze(0)
             batch["position_ids"][key] = torch.cat([torch.arange(l, dtype=torch.long) for l in seqlens], 0).unsqueeze(0)
             batch["cu_seqlens"][key] = (torch.tensor([0] + seqlens).cumsum(dim=-1).int(),)
-            batch["max_lens"][key] = max(seqlens)
+            batch["max_seqlen"][key] = max(seqlens)
 
         self.lengths = select(self.lengths, indices, reverse=True)
         self.n_targets = select(self.n_targets, indices, reverse=True)

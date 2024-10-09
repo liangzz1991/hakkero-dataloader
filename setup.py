@@ -27,7 +27,7 @@ def fetch_readme():
 
 setup(
     name="hakkero-dataloader",
-    url="",
+    url="https://github.com/ericxsun/hakkero-dataloader",
     keywords="Pytorch LM dataloader",
     version=__version__,
     long_description=fetch_readme(),
