@@ -94,7 +94,7 @@ class SegmentDataset(torch.utils.data.IterableDataset):
                     data, self.max_length, sample["info"], self.random
                 )
         except SegmentationError as e:
-            logger.warning(f"[{self.path}:{sample['info'][1]}]: {e}\n{sample['data']}")
+            logger.warning(f"[{self.path}:{sample['info'][1]}]: {e} => {sample['uid']}")
             return [dict(used=[sample["info"]])]
 
         for s in segments:
