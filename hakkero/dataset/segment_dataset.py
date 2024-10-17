@@ -46,12 +46,15 @@ class SegmentDataset(torch.utils.data.IterableDataset):
         self.seed = seed
         self.rank = rank
         self.world_size = world_size
+
+        block_size = kwargs.pop("block_size", 1024)
         self.dataset = IterableDataset(
             path,
             name=name,
             max_epoch=max_epoch,
             n_shards=n_shards,
             seed=seed,
+            block_size=block_size,
             prefetcher=prefetcher,
             infinite=infinite,
             rank=rank,
