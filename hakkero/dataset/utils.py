@@ -92,7 +92,7 @@ def random_range(start, stop=None, step=None, seed=0):
     #   3) ["multiplier" - 1] is divisible by 4 if "modulus" is divisible by 4.
     #
     # Pick a random odd-valued offset.
-    offset = random.randint(0, maximum) * 2 + 1
+    offset = rand.randint(0, maximum) * 2 + 1
     # Pick a multiplier 1 greater than a multiple of 4.
     multiplier = 4 * (maximum // 4) + 1
     # Pick a modulus just big enough to generate all numbers (power of 2).
@@ -173,7 +173,7 @@ class Range:
         old_split_stop = Range.index2split(stop, old_split_start, d_size)
         return list(range(old_split_start, old_split_stop + 1))
 
-    def random_iterate(self, seed=None):
+    def random_iterate(self, seed=0):
         yield from random_range(self.start, self.stop, self.step, seed=seed)
 
     def __len__(self):

@@ -182,7 +182,7 @@ def get_dataset(
     num_epochs,
     max_length=4096,
     homogeneous=False,
-    seed=0,
+    seed=-1,
     rank=0,
     world_size=1,
     n_workers=2,

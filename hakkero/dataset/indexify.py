@@ -10,6 +10,7 @@ from functools import partial
 
 import h5py
 
+from hakkero import __version__
 from hakkero.dataset.logger import logger
 
 
@@ -79,6 +80,7 @@ def build_index(filename, output=None, num_workers=None):
 
 def main():
     parser = argparse.ArgumentParser(description="build index for dataset")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--filename", type=str, help="full filename of jsonl file")
     parser.add_argument("--output", type=str, help="output path for saving data.jsonl and index.h5")
     parser.add_argument("--num_workers", type=int, default=None, help="number of workers")

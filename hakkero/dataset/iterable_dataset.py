@@ -155,7 +155,7 @@ class BlockedBitMap:
             try:
                 self.active[bid][sids] = 1
             except Exception as e:
-                raise 0
+                raise e
 
             if self.active[bid].all():
                 self.obsolete[bid] = 1
@@ -271,7 +271,7 @@ class IteratorState:
 
     @staticmethod
     def from_state_dict(state_dict):
-        # wrap_date = True: directly wrap the state_dict instead of copying to save space
+        # wrap_data = True: directly wrap the state_dict instead of copying to save space
         state = IteratorState(state_dict["size"], state_dict["bsize"])
         state.epoch = state_dict["epoch"]
         state.bitmaps = {
@@ -307,7 +307,7 @@ class IterableDataset(IndexedDataset, torch.utils.data.IterableDataset):
         name=None,
         seed=-1,
         max_epoch=1,
-        block_size=8192,
+        block_size=1024,
         prefetcher=None,
         infinite=False,
         n_shards=1,
@@ -416,7 +416,7 @@ class IterableDataset(IndexedDataset, torch.utils.data.IterableDataset):
 
                 samples = self.cache.pop(0)
                 epoch = samples[0]["info"][0]
-                if epoch >= self.max_epoch:
+                if epoch >= self.max_epoch:  # epoch start from 0
                     self.exhausted = True
 
                 self.block_iter = self.build_next_iter(samples)
