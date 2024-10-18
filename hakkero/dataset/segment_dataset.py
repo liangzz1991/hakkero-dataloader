@@ -183,7 +183,7 @@ class MixedSegmentDataset(SegmentDataset):
                 i = self.sampler.next(self.weights)
             except StopIteration:
                 self.exhausted = True
-                raise StopIteration
+                raise StopIteration()
 
             if not self.slots[i]:
                 try:
