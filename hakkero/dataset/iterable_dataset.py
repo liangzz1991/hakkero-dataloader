@@ -442,7 +442,7 @@ class IterableDataset(IndexedDataset, torch.utils.data.IterableDataset):
             blocks = (
                 (epoch, bid)
                 for epoch in itertools.count(self.state.epoch)
-                for bid in r.random_iterate(seed=self.seed + epoch)
+                for bid in r.random_iterate()
             )
             self.random = random.Random(self.seed)
         else:

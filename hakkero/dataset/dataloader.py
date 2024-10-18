@@ -49,7 +49,7 @@ class CudaPrefetcher(Iterable):
         current = self.next
 
         if current is None:
-            raise StopIteration
+            raise StopIteration()
 
         for value in current.values():
             if isinstance(value, torch.Tensor):
@@ -120,10 +120,10 @@ class PadLoaderBase(Loader):
             yield self.pop()
 
     def put(self, sample):
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def pop(self):
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 class PadLoader(PadLoaderBase):
@@ -354,10 +354,10 @@ class UnpadLoaderBase(Loader):
         return self.total_length > self.n_cache * self.max_total_length
 
     def put(self, sample):
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def pop(self):
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 class UnpadLoader(UnpadLoaderBase):

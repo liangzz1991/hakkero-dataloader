@@ -25,7 +25,7 @@ class MultinomialSampler:
     def next(self, weights):
         weight_sum = weights.sum()
         if np.isclose(weight_sum, 0):
-            raise StopIteration
+            raise StopIteration()
 
         if isinstance(self.sampler, itertools.count):
             while True:
@@ -51,15 +51,6 @@ def random_range(start, stop=None, step=None, seed=0):
 
     The random.shuffle(list) and random.sample(list, len(list)) require materialize the lists, which result in a
     long initialization period.
-
-    Args:
-        start:
-        stop:
-        step:
-        seed:
-
-    Returns:
-
     """
     if stop is None:
         start, stop = 0, start
@@ -68,8 +59,7 @@ def random_range(start, stop=None, step=None, seed=0):
         step = 1
 
     # use a mapping to convert a standard range into the desired range
-    def mapping(i):
-        return i * step + start
+    mapping = lambda i: (i * step) + start
 
     # compute the number of numbers in this range
     maximum = int(math.ceil((stop - start) / step))
@@ -80,8 +70,7 @@ def random_range(start, stop=None, step=None, seed=0):
         return
 
     # seed range with a random integer
-    rand = random.Random(seed)
-    value = rand.randint(0, maximum)
+    value = random.randint(0, maximum)
 
     # Construct an offset, multiplier, and modulus for a linear
     # congruential generator. These generators are cyclic and
@@ -92,7 +81,7 @@ def random_range(start, stop=None, step=None, seed=0):
     #   3) ["multiplier" - 1] is divisible by 4 if "modulus" is divisible by 4.
     #
     # Pick a random odd-valued offset.
-    offset = rand.randint(0, maximum) * 2 + 1
+    offset = random.randint(0, maximum) * 2 + 1
     # Pick a multiplier 1 greater than a multiple of 4.
     multiplier = 4 * (maximum // 4) + 1
     # Pick a modulus just big enough to generate all numbers (power of 2).
@@ -126,55 +115,8 @@ class Range:
         # e.g., [0, 3, 5, 7, 9] can be split into [0, 5, 9] and [3, 7]
         return Range(self.start + self.step * split, self.stop, self.step * n_splits)
 
-    def consecutive_sub_range(self, split, n_splits):
-        # consecutively split of range
-        # e.g., [0, 3, 5, 7, 9] can be split into [0, 3, 5] and [7, 9]
-        start, stop = self.split2index(split, n_splits, len(self))
-        return Range(self.start + start * self.step, self.start + stop * self.step, self.step)
-
-    @staticmethod
-    def split2index(split, n_splits, length):
-        # get the start and stop index of a given consecutively split
-        split_size = length // n_splits
-        remain = length % n_splits
-
-        if split < remain:
-            start = split * (split_size + 1)
-            stop = start + (split_size + 1)
-        else:
-            start = split * split_size + remain
-            stop = start + split_size
-
-        return start, stop
-
-    @staticmethod
-    def index2split(index, n_splits, length):
-        # get the consecutively split of a given index
-        split_size = length // n_splits
-        remain = length % n_splits
-        if index < (split_size + 1) * remain:
-            split = index // (split_size + 1)
-        else:
-            split = remain + (index - (split_size + 1) * remain) // split_size
-        return split
-
-    @staticmethod
-    def cover_split(split, n_splits, old_n_split, d_size):
-        # legacy code for an abandoned feature
-        # assume sequence is split consecutively with consecutive_sub_range
-        # old: [1,2,3,4,5] -> (0, [1,2]), (1, [3,4]), (2, [5])
-        # new: [1,2,3,4,5] -> (0, [1,2,3]), (1, [4,5])
-        # we want to cover the indices of new split with that of old split
-        # i.e., split 0 -> old splits [0, 1], split 1 -> old splits [2, 3]
-
-        # map the start & stop of the current split to the old splits
-        start, stop = Range.split2index(split, n_splits, d_size)
-        old_split_start = Range.index2split(start, old_n_split, d_size)
-        old_split_stop = Range.index2split(stop, old_split_start, d_size)
-        return list(range(old_split_start, old_split_stop + 1))
-
-    def random_iterate(self, seed=0):
-        yield from random_range(self.start, self.stop, self.step, seed=seed)
+    def random_iterate(self):
+        yield from random_range(self.start, self.stop, self.step)
 
     def __len__(self):
         return math.ceil((self.stop - self.start) / self.step)
