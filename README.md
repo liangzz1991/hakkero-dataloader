@@ -57,6 +57,8 @@ dataset = get_dataset(
     # add bos/eos token for legacy tokenize strategy
     add_bos_token=True,
     add_eos_token=True,
+    # norm dataset weight with tokens of target
+    norm_weight_with_n_targets=False,
 )
 
 dataloader = UnpadLoader(dataset, max_total_length=batch_size * max_length)

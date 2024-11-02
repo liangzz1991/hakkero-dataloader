@@ -42,6 +42,7 @@ class MixedDataset(torch.utils.data.IterableDataset):
         self.num_epochs = num_epochs
         self.max_length = max_length
         self.homogeneous = homogeneous
+        self.norm_weight_with_n_targets = kwargs.pop("norm_weight_with_n_targets", False)
 
         self.seed = seed
 
@@ -111,11 +112,13 @@ class MixedDataset(torch.utils.data.IterableDataset):
             if all(d.exhausted for d in self.datasets):
                 return
 
-            # remap the desired token distribution to sample distribution
-            # as different dataset has different average #tokens
-            # mask exhausted dataset
-            n_targets = np.array([d.avg_n_target for d in self.datasets], dtype=np.float64)
-            weights = self.active * self.weights / n_targets
+            weights = self.active * self.weights
+            if self.norm_weight_with_n_targets:
+                # remap the desired token distribution to sample distribution
+                # as different dataset has different average #tokens
+                n_targets = np.array([d.avg_n_target for d in self.datasets], dtype=np.float64)
+                weights = weights / n_targets
+
             try:
                 i = self.sampler.next(weights)
             except StopIteration:
@@ -170,7 +173,7 @@ class MixedDataset(torch.utils.data.IterableDataset):
             sorted(entries, key=lambda x: x[1], reverse=True),
             header,
             "pipe",
-            floatfmt=".3f",
+            floatfmt=".6f",
             colalign=("left", "right", "right", "right"),
         )
         return f"{self.__class__.__name__} with \n{table}"
