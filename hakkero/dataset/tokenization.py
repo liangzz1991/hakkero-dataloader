@@ -8,6 +8,45 @@ from hakkero.dataset.errors import TokenizationError
 from hakkero.dataset.utils import IGNORE_INDEX
 
 
+def check_legacy(data):
+    if not isinstance(data, dict):
+        return False
+
+    if any(s not in data for s in ("title", "summary", "abstract", "text", "question", "answer", "code")):
+        return False
+
+    return True
+
+
+def check_message(data):
+    if not isinstance(data, list):
+        return False
+
+    if not all(isinstance(d, dict) for d in data):
+        return False
+
+    if data[-1]["role"] != "assistant":
+        return False
+
+    if data[-2]["role"] != "user":
+        return False
+
+    return True
+
+
+def check_preference(data):
+    if not isinstance(data, dict):
+        return False
+
+    if "context" not in data or "chosen" not in data or "rejected" not in data:
+        return False
+
+    if not isinstance(data["chosen"], str) or not isinstance(data["rejected"], str):
+        return False
+
+    return check_message(data["context"])
+
+
 def legacy(data, tokenizer, **kwargs):
     assert isinstance(data, dict), "wrong data format, expect {key: value}, " + f"but got {data}"
 

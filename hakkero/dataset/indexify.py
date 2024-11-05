@@ -3,6 +3,7 @@
 #
 
 import argparse
+import json
 import multiprocessing as mp
 import os
 import shutil
@@ -12,6 +13,9 @@ import h5py
 
 from hakkero import __version__
 from hakkero.dataset.logger import logger
+from hakkero.dataset.tokenization import check_legacy
+from hakkero.dataset.tokenization import check_message
+from hakkero.dataset.tokenization import check_preference
 
 
 def _build_chunk_offsets(filename, start, end, worker_id, n_workers):
@@ -28,8 +32,23 @@ def _build_chunk_offsets(filename, start, end, worker_id, n_workers):
 
         while offset < end:
             logger.info(f"worker: {worker_id}/{n_workers}, offset: {offset}, range in offset [{start}, {end}]")
-            offset += len(fin.readline())
+            line = fin.readline()
+            offset += len(line)
             bounds.append(offset)
+
+            try:
+                js = json.loads(line)
+                _ = js["uid"]
+                data = js["data"]
+
+                if check_legacy(data) or check_message(data) or check_preference(data):
+                    continue
+                else:
+                    logger.error(f"invalid format line: {line}")
+                    raise ValueError("invalid format")
+            except Exception as e:
+                logger.error(f"invalid format line: {line}\n{e}")
+                raise e
 
     return bounds
 
@@ -46,7 +65,7 @@ def build_index(filename, output=None, num_workers=None):
     pool = mp.Pool(processes=num_workers)
 
     chunks = [(i * chunk_size, (i + 1) * chunk_size, i + 1, num_workers) for i in range(num_workers)]
-    chunks[-1] = (chunks[-1][0], file_size, chunks[-1][-2], chunks[-1][-1])
+    chunks[-1] = (chunks[-1][0], file_size, chunks[-1][2], num_workers)
 
     func = partial(_build_chunk_offsets, filename)
     results = pool.starmap(func, chunks)
