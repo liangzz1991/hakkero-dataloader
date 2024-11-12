@@ -16,6 +16,16 @@ check_fmt() {
   cd ${SELF_DIR}
 }
 
+check_dev() {
+  ${ROOT_PYTHON_BIN:+${ROOT_PYTHON_BIN}/}pip install -r ${SELF_DIR}/dev.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+}
+
 
 # ----------------------------------------------------------------------------------------------------------------------
-check_fmt
+if [[ "$1" == "fmt" ]]; then
+  check_fmt
+elif [[ "$1" == "dev" ]]; then
+  check_dev
+else
+  echo "not support cmd: $1"
+fi

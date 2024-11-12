@@ -4,6 +4,10 @@ default: fmt
 fmt:
 	./sbin/check.sh fmt
 
+.PHONY: dev
+dev:
+	./sbin/check.sh dev
+
 .PHONY: clean
 clean:
 	find . -name "*.pyc" -delete
